@@ -1,0 +1,163 @@
+<?php
+/**
+ * Class HttpRequest | HttpRequest.php
+ */
+
+/**
+ * Реализует GET, POST http запросы обрабатывая редиректы при их наличии.
+ *
+ * @author Marshak Igor aka !Joy!
+ * @package Intertelecom
+ * @version v.1.0 (11.09.17)
+ * @copyright Copyright (c) 2017 Marshak Igor aka !Joy!
+ *
+ */
+class HttpRequest
+{
+
+    const REDIRECT_LIMIT = 3;
+    const USER_AGENT = "Mozilla/4.0 (Windows; U; Windows NT 5.0; En; rv:1.8.0.2) Gecko/20070306 Firefox/1.0.0.4";
+
+    /**
+     * Счетчик редиректов
+     * @var int
+     */
+    protected $redirect_count = 0;
+
+    /**
+     * Объект CURL
+     *
+     * @var resourse
+     */
+    protected $ch;
+
+
+    /**
+     * Конструктор, при создании объекта инициализирует CURL и настраивает по умолчанию.
+     *
+     * @return void
+     */
+    public function __construct() {
+
+        $options = array(CURLOPT_USERAGENT => static::USER_AGENT,
+                         CURLOPT_SSL_VERIFYPEER => 0,
+                         CURLOPT_SSL_VERIFYHOST => 0,
+                         CURLOPT_RETURNTRANSFER => TRUE,
+                         CURLOPT_COOKIEJAR => 'cookie.txt',
+                         CURLOPT_COOKIEFILE => 'cookie.txt',
+                         CURLOPT_TIMEOUT => 50
+                         );
+
+        $this->ch = curl_init();
+
+        curl_setopt_array($this->ch, $options);
+
+    }
+
+
+    /**
+     * Настраивает GET запрос и вызывает метод осуществляющий запрос $this->request()
+     *
+     * @param string $url
+     * @return string[]
+     */
+    public function get($url) {
+
+        curl_setopt($this->ch, CURLOPT_URL, $url);
+
+        curl_setopt($this->ch, CURLOPT_POSTFIELDS, "");
+
+        curl_setopt($this->ch, CURLOPT_POST, FALSE);
+
+        return $this->request();
+
+
+    }
+
+
+    /**
+     * Настраивает POST запрос и вызывает метод осуществляющий запрос $this->request()
+     *
+     * @param string $url
+     * @param string $param
+     * @return string[]
+     */
+    public function post($url, $param) {
+
+        curl_setopt($this->ch, CURLOPT_URL, $url);
+
+        curl_setopt($this->ch, CURLOPT_POST, TRUE);
+
+        curl_setopt($this->ch, CURLOPT_POSTFIELDS, $param);
+
+        return $this->request();
+    }
+
+
+    /**
+     * Совершает запрос с настроенными параметрами CURL.
+     *
+     * @throws HttpRequest_Exception
+     * @return string[]
+     */
+    protected function request() {
+
+        $content = curl_exec($this->ch);
+
+        if ($content !== false) {
+
+            $http_code = curl_getinfo($this->ch, CURLINFO_HTTP_CODE);
+
+            $url_request = curl_getinfo($this->ch, CURLINFO_EFFECTIVE_URL);
+
+            if (($http_code == 301 || $http_code == 302) && $this->redirect_count < static::REDIRECT_LIMIT) {
+
+                $this->redirect_count++;
+
+                return $this->get(curl_getinfo($this->ch, CURLINFO_REDIRECT_URL));
+            }
+
+            $this->redirect_count = 0;
+
+            return [
+                "url_request"=>$url_request,
+                "http_code"=>$http_code,
+                "content"=>$content,
+            ];
+
+        } else {
+
+            $text_error = curl_error($this->ch);
+
+            $code_error = curl_errno($this->ch);
+
+            $code_error_message = "";
+
+            if (PHP_VERSION_ID >= 50500) {
+
+                $code_error_message = curl_strerror($code_error);
+
+                $code_error_message = " (" . $code_error_message . ")";
+            }
+
+            throw new HttpRequest_Exception("Ошибка CURL: " . $text_error . "\r\ncode: " . $code_error . $code_error_message);
+        }
+    }
+
+
+    /**
+     * Диструктор очищает память от объекта CURL
+     *
+     * @return void
+     */
+    public function __destruct() {
+
+        curl_close($this->ch);
+
+        $fp = fopen(__DIR__."/cookie.txt","w");
+
+        fwrite($fp, "");
+
+        fclose($fp);
+    }
+}

@@ -1,0 +1,109 @@
+<?php
+/**
+ * Class EmailSender | EmailSender.php
+ */
+
+/**
+ */
+require_once("ConfigLoader.php");
+
+/**
+ * Отправляет письмо на указанный email адресс.
+ *
+ * @author Marshak Igor aka !Joy!
+ * @package Intertelecom
+ * @version v.1.0 (11.09.17)
+ * @copyright Copyright (c) 2017 Marshak Igor aka !Joy!
+ *
+ */
+class EmailSender
+{
+
+    const CONFIG_FILE_PATH = "config/config_email.json";
+
+    const MAIL_SUBJECT = "Интертелеком. Оповещение об оставшихся минутах на мобильные.";
+    const MAIL_HEADER_CONTENT_TYPE = "Content-type: text/plain; charset=utf-8 \r\n";
+    const MAIL_HEADER_FROM = "From: ";
+
+
+    /**
+     * Заголовки письма, если их несколько, должны разделяться переносом строки.
+     *
+     * @var string
+     */
+    protected $mail_headers;
+
+
+    /**
+     * Адресс получателя письма
+     *
+     * @var string
+     */
+    protected $mail_to
+    ;
+
+
+    /**
+     * При создании объекта загружает настройки для отправки почты,
+     * такие как адресс получателя и адресс отправителя.
+     * Устанавливает свойства объекта.
+     *
+     * @return void
+     */
+    public function __construct(){
+
+        $config_loader = new ConfigLoader(static::CONFIG_FILE_PATH);
+
+        $config = $config_loader->getConfig();
+
+        $this->validateConfig($config);
+
+        $this->mail_to = $config->mail_to;
+
+        $this->mail_headers = static::MAIL_HEADER_CONTENT_TYPE . static::MAIL_HEADER_FROM . $config->mail_header_from . "\r\n";
+
+    }
+
+    /**
+     * Проверка на валидность конфигурационных данных для отравки письма
+     *
+     * @param StdClass $config
+     * @throws EmailSender_Exception
+     * @return void
+     */
+    protected function validateConfig($config) {
+
+        if (!is_object($config)) {
+
+            throw new EmailSender_Exception("Ошибка config должен быть объектом");
+        }
+
+        if (!isset($config->mail_to) || !isset($config->mail_header_from)) {
+
+            throw new EmailSender_Exception("Ошибка. В конфигурации должны быть установлены mail_to, mail_header_from");
+        }
+    }
+
+
+
+    /**
+     * Настройка параметров отправки письма и его отправка.
+     *
+     * @param string $str
+     * @param string $subject
+     * @return void
+     */
+    public function send($str, $subject = "") {
+
+        $msg = date('d/m/Y G:i:s', time()) .  "\r\n";
+        $msg .= $str . "\r\n";
+
+        if ($subject == "") {
+
+            $subject = static::MAIL_SUBJECT;
+
+        }
+
+        mail($this->mail_to, $subject, $msg, $this->mail_headers);
+    }
+}
