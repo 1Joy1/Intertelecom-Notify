@@ -9,9 +9,9 @@
  *
  */
 
-ini_set("display_errors",1);
-ini_set('error_reporting',2047);
-error_reporting(E_ALL);
+//ini_set("display_errors",1);
+//ini_set('error_reporting',2047);
+//error_reporting(E_ALL);
 
 echo '<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />';
 

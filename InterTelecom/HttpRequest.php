@@ -40,8 +40,8 @@ class HttpRequest
     public function __construct() {
 
         $options = array(CURLOPT_USERAGENT => static::USER_AGENT,
-                         CURLOPT_SSL_VERIFYPEER => 0,
-                         CURLOPT_SSL_VERIFYHOST => 0,
+                         //CURLOPT_SSL_VERIFYPEER => 0,
+                         //CURLOPT_SSL_VERIFYHOST => 0,
                          CURLOPT_RETURNTRANSFER => TRUE,
                          CURLOPT_COOKIEJAR => 'cookie.txt',
                          CURLOPT_COOKIEFILE => 'cookie.txt',
@@ -58,8 +58,8 @@ class HttpRequest
     /**
      * Настраивает GET запрос и вызывает метод осуществляющий запрос $this->request()
      *
-     * @param string $url
-     * @return string[]
+     * @param string $url     URL адрес запроса
+     * @return string[]       Результат выполнения метода request
      */
     public function get($url) {
 
@@ -78,9 +78,9 @@ class HttpRequest
     /**
      * Настраивает POST запрос и вызывает метод осуществляющий запрос $this->request()
      *
-     * @param string $url
-     * @param string $param
-     * @return string[]
+     * @param string $url      URL адрес запроса
+     * @param string $param    Параметры передаваеммые в запросе
+     * @return string[]        Результат выполнения метода request
      */
     public function post($url, $param) {
 
