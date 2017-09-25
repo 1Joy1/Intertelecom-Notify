@@ -9,6 +9,7 @@ require_once("HttpRequest.php");
 require_once("EmailSender.php");
 require_once("AbonentRepository.php");
 require_once("ConfigLoader.php");
+require_once("AbonentRepositorySourceMySql.php");
 
 /**
  * Получает данные из личного кабинета пользователя ищет сколько осталось пакетных минут на мобильные,
@@ -16,7 +17,7 @@ require_once("ConfigLoader.php");
  *
  * @author Marshak Igor aka !Joy!
  * @package Intertelecom
- * @version v.1.0 (11.09.17)
+ * @version v.1.1 (25.09.17)
  * @copyright Copyright (c) 2017 Marshak Igor aka !Joy!
  *
  */
@@ -29,7 +30,7 @@ class IntertelecomNotify
 
     const CONFIG_FILE_PATH = "config/config_auth.json";
 
-    const LEFT_SEC = 900;  // 900 секунд = 15 минут
+    const LEFT_SEC = 9000;  // 900 секунд = 15 минут
 
     const REGEXP_BAL_BASE = "/\<td\>Украина\+Моб\.Украина\<\/td\>.*?\<td.*?\>(.*?) по.*?\<\/td\>/s";
     const REGEXP_BAL_100 = "/\<td\>Украина \(моб\.\) \[100 мин\]\<\/td\>.*?\<td.*?\>(.*?) по.*?\<\/td\>/s";
@@ -47,7 +48,7 @@ class IntertelecomNotify
     /**
     * Объект реализующий подключение и выполняющий запросы к базе данных
     *
-    * @var AbonentRepository
+    * @var AbonentRepositorySourceMySql | AbonentRepository
     */
     protected $abonent_repo;
 
@@ -68,7 +69,7 @@ class IntertelecomNotify
 
         $this->email_sender = new EmailSender();
 
-        $this->abonent_repo = new AbonentRepository();
+        $this->abonent_repo = new AbonentRepository(new AbonentRepositorySourceMySql);
 
         $this->request = new HttpRequest();
 
@@ -159,57 +160,73 @@ class IntertelecomNotify
      * Запрашивает и обрабатывает полученные данные
      *
      * @param Abonent $abonent
-     * @throws IntertelecomNotify_Exception
      * @return void
      */
     public function getAndProcessData($abonent) {
 
         $result = $this->request->post(static::URL_STATISTIC, $abonent->getUserParam());
+        $sec = 0;
+        $more_info = '';
 
         if ($result["http_code"] != 200) {
 
-            throw new IntertelecomNotify_Exception("Нет доступа к странице статистики абонента " . $abonent->getUserNumber() . " http_code:" . $result["http_code"]);
+            $new_mess = "Нет доступа к странице статистики абонента " . $abonent->getUserNumber() . " http_code:" . $result["http_code"];
 
-        } else {
+            $this->checkAndSendMessage($new_mess, $abonent);
 
-            if ($data = $this->parserData($result["content"], static::REGEXP_BAL_BASE)) {
+            return;
+        }
 
-                if ($data["sec"] < static::LEFT_SEC) {
+        if ($data = $this->parserData($result["content"], static::REGEXP_ERROR)) {
 
-                    $new_mess = "На основном счёте абонента " . $abonent->getUserNumber() . ", осталось " . $data["left_time"] . " мин. на мобильные.";
+            $new_mess = "Нет доступа к странице статистики абонента. " . $abonent->getUserNumber() . " Сообщение:" . $data["error_message"];
 
-                    $this->checkAndSendMessage($new_mess, $abonent);
-                }
+            $this->checkAndSendMessage($new_mess, $abonent);
 
-            } elseif ($data = $this->parserData($result["content"], static::REGEXP_BAL_100)) {
+            return;
+        }
 
-                if ($data["sec"] < static::LEFT_SEC) {
+        if ($data = $this->parserData($result["content"], static::REGEXP_BAL_BASE)) {
 
-                    $new_mess = "На счёте '100 мин. на мобильные' абонента " . $abonent->getUserNumber() . ", осталось " . $data["left_time"] . " мин. на мобильные.";
+            $more_info = $more_info . "На основном счёте - " . $data["left_time"] . " мин.\r\n";
 
-                    $this->checkAndSendMessage($new_mess, $abonent);
-                }
+            $sec = $sec + $data["sec"];
+        }
 
-            } elseif ($data = $this->parserData($result["content"], static::REGEXP_BAL_200)) {
+        if ($data = $this->parserData($result["content"], static::REGEXP_BAL_100)) {
 
-                if ($data["sec"] < static::LEFT_SEC) {
-                    $new_mess = "На счёте '200 мин. на мобильные' абонента " . $abonent->getUserNumber() . ", осталось " . $data["left_time"] . " мин. на мобильные.";
+            $more_info = $more_info . "На счёте '100 мин. на мобильные' - " . $data["left_time"] . " мин.\r\n";
 
-                    $this->checkAndSendMessage($new_mess, $abonent);
-                }
+            $sec = $sec + $data["sec"];
+        }
 
-            } elseif ($data = $this->parserData($result["content"], static::REGEXP_ERROR)) {
+        if ($data = $this->parserData($result["content"], static::REGEXP_BAL_200)) {
 
-                $new_mess = "Нет доступа к странице статистики абонента. " . $abonent->getUserNumber() . " Сообщение:" . $data["error_message"];
+            $more_info = $more_info . "На счёте '200 мин. на мобильные' - " . $data["left_time"] . " мин.\r\n";
 
-                $this->checkAndSendMessage($new_mess, $abonent);
+            $sec = $sec + $data["sec"];
+        }
 
-            } else {
 
-                $new_mess = "На основном счёте абонента закончились минуты на мобильные, или произошла ошибка парсера. Не возможно получить оставшиеся минуты по номеру " . $abonent->getUserNumber();
 
-                $this->checkAndSendMessage($new_mess, $abonent);
-            }
+        if ($sec < static::LEFT_SEC && $sec !== 0) {
+
+            $h=str_pad((floor($sec/3600)), 2, '0', STR_PAD_LEFT);
+            $m=str_pad((floor(($sec%3600)/60)), 2, '0', STR_PAD_LEFT);
+            $s=str_pad((floor(($sec%3600)%60)), 2, '0', STR_PAD_LEFT);
+
+            $new_mess = "На счету абонента " . $abonent->getUserNumber() . ", осталось " . $h . ":" . $m . ":" . $s . " на мобильные\r\n\r\nПодробнее:\r\n" . $more_info;
+
+            $this->checkAndSendMessage($new_mess, $abonent);
+
+        }
+
+
+        if ($sec == 0) {
+
+            $new_mess = "На основном счёте абонента закончились минуты на мобильные, или произошла ошибка парсера. Не возможно получить оставшиеся минуты по номеру " . $abonent->getUserNumber();
+
+            $this->checkAndSendMessage($new_mess, $abonent);
         }
     }
 
@@ -229,7 +246,9 @@ class IntertelecomNotify
 
             $this->email_sender->send($new_mess, "Интертелеком. Оповещение для абонента " . $abonent->getUserNumber() . ".");
 
-            echo $new_mess . "\r\n\r\n<br><br>";
+
+             echo str_replace("\r\n", "<br>", $new_mess . "\r\n\r\n");
+
 
         } else {
 
@@ -239,7 +258,10 @@ class IntertelecomNotify
 
             $this->abonent_repo->updateCount($count, $abonent->getUserNumber());
 
-            echo "Счетчик увеличен до " . $count ."\r\n<br>Сообщение: " . $new_mess . "\r\n\r\n<br><br>";
+
+            echo str_replace("\r\n", "<br>", "Счетчик увеличен до " . $count ."\r\nСообщение: " . $new_mess . "\r\n\r\n");
+
+
         }
     }
 
@@ -250,7 +272,7 @@ class IntertelecomNotify
      *
      * @param string $html
      * @param string $regexp
-     * @return bool|strig[]
+     * @return bool|array
      */
     protected function parserData($html, $regexp) {
 
@@ -265,6 +287,8 @@ class IntertelecomNotify
 
             return [
                 "error_message"=>$matches[2],
+                "left_time"=>null,
+                "sec"=>null
                 ];
         }
 
@@ -282,6 +306,7 @@ class IntertelecomNotify
         $sec = $left_time_sec[0] * 60 * 60 + $left_time_sec[1] * 60 + $left_time_sec[2];
 
         return [
+            "error_message"=>null,
             "left_time"=>$left_time,
             "sec"=>$sec
             ];

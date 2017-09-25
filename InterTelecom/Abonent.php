@@ -1,5 +1,5 @@
 <?php
- /**
+/**
  * Class Abonent | Abonent.php
  */
 
