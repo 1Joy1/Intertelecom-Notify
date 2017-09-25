@@ -30,7 +30,7 @@ class IntertelecomNotify
 
     const CONFIG_FILE_PATH = "config/config_auth.json";
 
-    const LEFT_SEC = 9000;  // 900 секунд = 15 минут
+    const LEFT_SEC = 900;  // 900 секунд = 15 минут
 
     const REGEXP_BAL_BASE = "/\<td\>Украина\+Моб\.Украина\<\/td\>.*?\<td.*?\>(.*?) по.*?\<\/td\>/s";
     const REGEXP_BAL_100 = "/\<td\>Украина \(моб\.\) \[100 мин\]\<\/td\>.*?\<td.*?\>(.*?) по.*?\<\/td\>/s";
