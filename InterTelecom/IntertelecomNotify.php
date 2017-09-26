@@ -28,7 +28,7 @@ class IntertelecomNotify
     const URL_STATISTIC = "https://assa.intertelecom.ua/ru/statistic/";
     const URL_LOGOUT ="https://assa.intertelecom.ua/ru?logout";
 
-    const CONFIG_FILE_PATH = "config/config_auth.json";
+    const CONFIG_FILE_PATH = __DIR__."/config/config_auth.json";
 
     const LEFT_SEC = 900;  // 900 секунд = 15 минут
 

@@ -43,8 +43,8 @@ class HttpRequest
                          //CURLOPT_SSL_VERIFYPEER => 0,
                          //CURLOPT_SSL_VERIFYHOST => 0,
                          CURLOPT_RETURNTRANSFER => TRUE,
-                         CURLOPT_COOKIEJAR => 'cookie.txt',
-                         CURLOPT_COOKIEFILE => 'cookie.txt',
+                         CURLOPT_COOKIEJAR => __DIR__."/cookie.txt",
+                         CURLOPT_COOKIEFILE => __DIR__."/cookie.txt",
                          CURLOPT_TIMEOUT => 50
                          );
 

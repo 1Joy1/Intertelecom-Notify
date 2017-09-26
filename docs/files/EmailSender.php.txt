@@ -19,7 +19,7 @@ require_once("ConfigLoader.php");
 class EmailSender
 {
 
-    const CONFIG_FILE_PATH = "config/config_email.json";
+    const CONFIG_FILE_PATH = __DIR__."/config/config_email.json";
 
     const MAIL_SUBJECT = "Интертелеком. Оповещение об оставшихся минутах на мобильные.";
     const MAIL_HEADER_CONTENT_TYPE = "Content-type: text/plain; charset=utf-8 \r\n";
