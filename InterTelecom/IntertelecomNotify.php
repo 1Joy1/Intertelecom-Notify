@@ -35,7 +35,10 @@ class IntertelecomNotify
     const REGEXP_BAL_BASE = "/\<td\>Украина\+Моб\.Украина\<\/td\>.*?\<td.*?\>(.*?) по.*?\<\/td\>/s";
     const REGEXP_BAL_100 = "/\<td\>Украина \(моб\.\) \[100 мин\]\<\/td\>.*?\<td.*?\>(.*?) по.*?\<\/td\>/s";
     const REGEXP_BAL_200 = "/\<td\>Украина \(моб\.\) \[200 мин\]\<\/td\>.*?\<td.*?\>(.*?) по.*?\<\/td\>/s";
+    const REGEXP_BONUS_FIN = "/\<td\>Наилучшее общение\<\/td\>.*?\<td.*?\>(.*?) (\(.*?\)).*?\<\/td\>/s";
+    const REGEXP_SALDO_FIN = "/\<td\>Сальдо\<\/td\>.*?\<td.*?\>(.*?)\<\/td\>/s";
     const REGEXP_ERROR = "/\<p class=\"(error)\"\>(.*?)\<\/p\>/";
+
 
 
     /**
@@ -207,6 +210,16 @@ class IntertelecomNotify
             $sec = $sec + $data["sec"];
         }
 
+        if (preg_match(static::REGEXP_BONUS_FIN, $result["content"], $matches)) {
+
+            $more_info = $more_info . "На бонусном счету 'Наилучшее общение' - " . trim($matches[1]) . " гр. " . trim($matches[2]) . "\r\n";
+        }
+
+        if (preg_match(static::REGEXP_SALDO_FIN, $result["content"], $matches)) {
+
+            $more_info = $more_info . "На основном счету - " . trim($matches[1]) . " гр.\r\n";
+        }
+
 
 
         if ($sec < static::LEFT_SEC && $sec !== 0) {
@@ -222,7 +235,14 @@ class IntertelecomNotify
         }
 
 
-        if ($sec == 0) {
+        if ($sec == 0 && $more_info != '') {
+
+            $new_mess = "На основном счёте абонента " . $abonent->getUserNumber() . " закончились минуты на мобильные.\r\n\r\nПодробнее:\r\n" . $more_info;
+
+            $this->checkAndSendMessage($new_mess, $abonent);
+        }
+
+        if ($sec == 0 && $more_info == '') {
 
             $new_mess = "На основном счёте абонента закончились минуты на мобильные, или произошла ошибка парсера. Не возможно получить оставшиеся минуты по номеру " . $abonent->getUserNumber();
 
