@@ -17,7 +17,7 @@ require_once("AbonentRepositorySourceMySql.php");
  *
  * @author Marshak Igor aka !Joy!
  * @package Intertelecom
- * @version v.1.1 (25.09.17)
+ * @version v.1.2 (15.06.18)
  * @copyright Copyright (c) 2017 Marshak Igor aka !Joy!
  *
  */
@@ -35,6 +35,7 @@ class IntertelecomNotify
     const REGEXP_BAL_BASE = "/\<td\>Украина\+Моб\.Украина\<\/td\>.*?\<td.*?\>(.*?) по.*?\<\/td\>/s";
     const REGEXP_BAL_100 = "/\<td\>Украина \(моб\.\) \[100 мин\]\<\/td\>.*?\<td.*?\>(.*?) по.*?\<\/td\>/s";
     const REGEXP_BAL_200 = "/\<td\>Украина \(моб\.\) \[200 мин\]\<\/td\>.*?\<td.*?\>(.*?) по.*?\<\/td\>/s";
+    const REGEXP_BAL_DOP = "/\<td\>ИТ\(местные\+Украина\+моб\.094\)\+Местные\+Украина\+Моб\.Украина\<\/td\>.*?\<td.*?\>(.*?) по.*?\<\/td\>/s";
     const REGEXP_BONUS_FIN = "/\<td\>Наилучшее общение\<\/td\>.*?\<td.*?\>(.*?) (\(.*?\)).*?\<\/td\>/s";
     const REGEXP_SALDO_FIN = "/\<td\>Сальдо\<\/td\>.*?\<td.*?\>(.*?)\<\/td\>/s";
     const REGEXP_ERROR = "/\<p class=\"(error)\"\>(.*?)\<\/p\>/";
@@ -210,6 +211,13 @@ class IntertelecomNotify
             $sec = $sec + $data["sec"];
         }
 
+        if ($data = $this->parserData($result["content"], static::REGEXP_BAL_DOP)) {
+
+            $more_info = $more_info . "На счёте 'Дополнительные минуты на мобильные' - " . $data["left_time"] . " мин.\r\n";
+
+            $sec = $sec + $data["sec"];
+        }
+
         if (preg_match(static::REGEXP_BONUS_FIN, $result["content"], $matches)) {
 
             $more_info = $more_info . "На бонусном счету 'Наилучшее общение' - " . trim($matches[1]) . " гр. " . trim($matches[2]) . "\r\n";
@@ -300,7 +308,6 @@ class IntertelecomNotify
 
             return false;
         }
-
         ////В случае наличия сообщения об ошибке на странице.////
 
         if ($matches[1] == "error") {
